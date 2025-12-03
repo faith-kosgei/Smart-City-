@@ -3,9 +3,9 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+COPY ../traffic_model.pkl ./traffic_model.pkl
 
-CMD ["python", "simulate.py", "--roads", "10", "--interval", "5", "--out", "/data/output.jsonl"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

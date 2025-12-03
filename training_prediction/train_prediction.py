@@ -1,0 +1,87 @@
+import pandas as pd
+import psycopg2
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+import joblib
+import time
+import os
+
+DB_HOST = os.getenv("DB_HOST", "postgres")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "traffic")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+
+MODEL_FILE = "/app/traffic_model.pkl"
+# this shows that it retrains every 30s
+SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 30)) 
+
+# fetching data from db
+def fetch_data():
+    conn = pyscopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+    df = pd.read_sql("SELECT * FROM traffic", conn)
+    conn.close()
+    return df
+
+# data preprocessing for the ML
+def preprocess(df):
+    df = df.copy()
+    # use one-hot encode 'weather' and 'road_id' to handle all possible values dynamically
+    df = pd.get_dummies(df, columns=["weather", "road_id"])
+
+    # congestion levels to numeric
+    df["congestion_level"] = df["congestion_level"].map({"low": 0, "medium": 1, "high": 2}).fillna(1)
+
+    return df
+
+# training loop
+while True:
+    try:
+        df = fetch_data()
+
+        if len(df) < 10:
+            print("Not enough data yet, Waiting ...")
+            time.sleep(SLEEP_INTERVAL)
+            continue
+
+        df = preprocess(df)
+
+        # feature and target
+        X = df.drop(columns=["vehicle_count", "timestamp"])
+        y = df["vehicle_count"]
+
+        # train / test split
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # training the model 
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+
+        # evaluation 
+        y_prediction = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_prediction)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trained model | MSE: {mse:.2f} | Rows used: {len(df)}")
+
+        # save the model
+        joblib.dump(model, MODEL_FILE)
+
+        # wait before the next training cycle
+        time.sleep(SLEEP_INTERVAL)
+
+    except KeyboardInterrupt:
+        print("Training loop stopped manually.")
+        break
+    except Exception as e:
+        print("Error:", e)
+        time.sleep(SLEEP_INTERVAL)
+
+
+

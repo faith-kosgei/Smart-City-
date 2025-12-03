@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: traffic-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: traffic
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  simulator:
+    build: ./data_simulator
+    container_name: traffic-simulator
+    volumes:
+      - sim_output:/data
+    command: ["python", "simulate.py", "--roads", "10", "--interval", "5", "--out", "/data/output.jsonl"]
+
+  ingestor:
+    build: ./data_ingestor
+    container_name: traffic-ingestor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      simulator:
+        condition: service_started
+    volumes:
+      - sim_output:/data
+    environment:
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: traffic
+      DATA_FILE: /data/output.jsonl
+    restart: on-failure
+
+  training:
+    build: ./training_prediction
+    container_name: traffic-training
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - model_data:/app/model
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: traffic
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      SLEEP_INTERVAL: 30    
+    restart: always
+
+volumes:
+  sim_output:
+  pg_data:
+  model_data:
+
+
+    
+

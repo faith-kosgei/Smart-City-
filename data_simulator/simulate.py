@@ -2,8 +2,10 @@ import time
 import json
 import random
 import argparse
-from datetime import datetime, timedelta
-import numpy as pd
+from datetime import datetime, timedelta, timezone
+
+
+import numpy as np
 import pandas as pd
 
 class TrafficSimulator:
@@ -43,12 +45,12 @@ class TrafficSimulator:
         return random.choices(weather_types, weights)[0]
 
     def simulate_record(self):
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
         weather = self._simulate_weather()
 
         data = []
 
-        for road_id, profile in self.road_prefiles.items():
+        for road_id, profile in self.road_profiles.items():
             base = profile["base_volume"]
             peak = self._time_of_day_factor(timestamp)
             weather_effect = (
@@ -89,11 +91,11 @@ class TrafficSimulator:
         print(f"Starting the data simulation process every {self.interval}s....\n")
         while True:
             records = self.simulate_record()
-            with open(self,out_path, "a") as f:
+            with open(self.out_path, "a") as f:
                 for r in records:
                     f.write(json.dumps(r) + "\n")
             
-            print(f"[{datetime.utcnow()}]Generated {len(records)} new records")
+            print(f"[{datetime.now(timezone.utc)}]Generated {len(records)} new records")
             time.sleep(self.interval)
 
 if __name__ == "__main__":

@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "simulate.py", "--roads", "10", "--interval", "5", "--out", "/data/output.jsonl"]
+CMD ["python", "ingestor.py"]

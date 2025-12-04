@@ -1,25 +1,30 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import pandas as pd
-import joblib
 import os
+import time
+import joblib
+from fastapi import FastAPI
+import numpy as np
 
-MODEL_FILE = "/app/traffic_model.pkl"
+MODEL_FILE = "/app/model/traffic_model.pkl"
 
-# loading the model
-model - joblib.load(MODEL_FILE)
+# Wait until the model exists
+while not os.path.exists(MODEL_FILE):
+    print(f"Model file {MODEL_FILE} not found, waiting 5 seconds...")
+    time.sleep(5)
 
-app = FastAPI(title="Traffic prediction API")
+# Load the model once it exists
+model = joblib.load(MODEL_FILE)
+print("Model loaded successfully!")
 
-# defining the input schema
-class TrafficInput(BaseModel):
-    road_id: str
-    weather: str
-    congestion_level: str
-    avg_speed: float
-    accident_flag: int
+app = FastAPI()
 
+@app.get("/")
+def root():
+    return {"message": "Traffic API is running"}
 
-def preprocess_input(data: TrafficInput):
-    df = pd.get_dummies(df, columns=["road_id", "weather"])
-    
+@app.get("/predict")
+def predict():
+    # Example prediction, replace with real features   
+    sample_features = np.zeros((1, model.coef_.shape[0]))
+    prediction = model.predict(sample_features)
+    return {"prediction": float(prediction[0])}
+

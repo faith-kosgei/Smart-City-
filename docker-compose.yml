@@ -58,10 +58,23 @@ services:
       SLEEP_INTERVAL: 30    
     restart: always
 
+  traffic-api:
+    build: ./api
+    container_name: traffic-api
+    depends_on:
+      - training
+    volumes:
+      - model_data:/app/model
+    ports:
+      - "8000:8000"
+    
+
+
 volumes:
   sim_output:
   pg_data:
   model_data:
+
 
 
     

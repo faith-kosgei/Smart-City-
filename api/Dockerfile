@@ -6,6 +6,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY ../traffic_model.pkl ./traffic_model.pkl
+
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

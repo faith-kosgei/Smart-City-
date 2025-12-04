@@ -13,20 +13,23 @@ DB_NAME = os.getenv("DB_NAME", "traffic")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
-MODEL_FILE = "/app/traffic_model.pkl"
+MODEL_FILE = "/app/model/traffic_model.pkl"
 # this shows that it retrains every 30s
 SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 30)) 
 
+# make sure model folder exists
+os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
+
 # fetching data from db
 def fetch_data():
-    conn = pyscopg2.connect(
+    conn = psycopg2.connect(
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASSWORD
     )
-    df = pd.read_sql("SELECT * FROM traffic", conn)
+    df = pd.read_sql("SELECT * FROM traffic_data", conn)
     conn.close()
     return df
 

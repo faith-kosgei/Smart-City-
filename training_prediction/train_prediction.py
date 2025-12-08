@@ -1,11 +1,14 @@
 import pandas as pd
 import psycopg2
+from sqlalchemy import create_engine
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import joblib
 import time
 import os
+
+
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
@@ -17,22 +20,21 @@ MODEL_FILE = "/app/model/traffic_model.pkl"
 # this shows that it retrains every 30s
 SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 30)) 
 
-# make sure model folder exists
-os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
+
+
+# create SQLAlchemy engine
+DB_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(DB_URL)
 
 # fetching data from db
 def fetch_data():
-    conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
-    df = pd.read_sql("SELECT * FROM traffic_data", conn)
-    conn.close()
-    return df
-
+    try:
+        df = pd.read_sql("SELECT * FROM traffic_data", engine)
+        return df
+    except Exception as e:
+        print(f"Error fetching data:", e)
+        return pd.DataFrame()  # This return empty dataframe if error occurs or it fails to fetch the data
+   
 # data preprocessing for the ML
 def preprocess(df):
     df = df.copy()
@@ -73,6 +75,8 @@ while True:
         mse = mean_squared_error(y_test, y_prediction)
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trained model | MSE: {mse:.2f} | Rows used: {len(df)}")
 
+        # make sure model folder exists
+        os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
         # save the model
         joblib.dump(model, MODEL_FILE)
 
@@ -85,6 +89,4 @@ while True:
     except Exception as e:
         print("Error:", e)
         time.sleep(SLEEP_INTERVAL)
-
-
 

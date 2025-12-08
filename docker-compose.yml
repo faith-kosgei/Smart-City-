@@ -65,9 +65,16 @@ services:
       - training
     volumes:
       - model_data:/app/model
+      - ./anomaly_services:/app/anomaly_services 
     ports:
       - "8000:8000"
-    
+
+  anomaly:
+    build: ./anomaly_services
+    container_name: traffic-anomaly
+    volumes:
+      - model_data:/app/model
+   
 
 
 volumes:

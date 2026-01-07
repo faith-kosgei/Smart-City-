@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error
 import joblib
 import time
 import os
+# from anomaly_services.detection import train_anomaly_model
 
 
 
@@ -16,7 +17,10 @@ DB_NAME = os.getenv("DB_NAME", "traffic")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
-MODEL_FILE = "/app/model/traffic_model.pkl"
+PREDICTION_MODEL_FILE = "/app/model/traffic_model.pkl"
+
+
+os.makedirs("/app/model", exist_ok=True)
 # this shows that it retrains every 30s
 SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 30)) 
 
@@ -66,23 +70,23 @@ while True:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         # training the model 
-        model = LinearRegression()
-        model.fit(X_train, y_train)
+        prediction_model = LinearRegression()
+        prediction_model.fit(X_train, y_train)
 
 
         # evaluation 
-        y_prediction = model.predict(X_test)
+        y_prediction = prediction_model.predict(X_test)
         mse = mean_squared_error(y_test, y_prediction)
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trained model | MSE: {mse:.2f} | Rows used: {len(df)}")
 
         # make sure model folder exists
-        os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
+        os.makedirs(os.path.dirname(PREDICTION_MODEL_FILE), exist_ok=True)
         # save the model
-        joblib.dump(model, MODEL_FILE)
+        joblib.dump(prediction_model, PREDICTION_MODEL_FILE)
 
-        # wait before the next training cycle
-        time.sleep(SLEEP_INTERVAL)
+        print("prediction model trained successfully and saved")
 
+       
     except KeyboardInterrupt:
         print("Training loop stopped manually.")
         break

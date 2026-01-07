@@ -65,17 +65,23 @@ services:
       - training
     volumes:
       - model_data:/app/model
-      - ./anomaly_services:/app/anomaly_services 
     ports:
       - "8000:8000"
-
-  anomaly:
+      
+  anomaly-service:
     build: ./anomaly_services
     container_name: traffic-anomaly
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - model_data:/app/model
-   
-
+    environment:
+      DB_HOST: postgres
+      DB_NAME: traffic
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    restart: on-failure
 
 volumes:
   sim_output:

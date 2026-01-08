@@ -5,10 +5,20 @@ from fastapi import FastAPI, Request
 import numpy as np
 import sys
 import pandas as pd
-# from anomaly_services.detection import predict_anomaly
+from sqlalchemy import create_engine
 
 PREDICTION_MODEL_FILE = "/app/model/traffic_model.pkl"
 ANOMALY_MODEL_FILE = "/app/model/traffic_anomaly_model.pkl"
+
+DB_HOST = os.getenv("DB_HOST", "postgres")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "traffic")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+
+# create SQLAlchemy engine
+DB_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(DB_URL)
 
 # Wait until the model exists
 while not os.path.exists(PREDICTION_MODEL_FILE):
@@ -23,15 +33,66 @@ while not os.path.exists(ANOMALY_MODEL_FILE):
 prediction_model = joblib.load(PREDICTION_MODEL_FILE)
 print("Model loaded successfully!")
 
+
 app = FastAPI()
+
+# building the lag features inside the API
+def build_features_from_db():
+    query = """
+    SELECT *
+    FROM traffic_data
+    ORDER BY timestamp DESC
+    LIMIT 4
+    """
+
+    df = pd.read_sql(query, engine)
+
+    if len(df) < 4:
+        raise ValueError("Not enough data for prediction")
+
+    df = df.sort_values("timestamp")
+
+    latest = {}
+
+    for lag in [1, 2, 3]:
+        latest[f"vehicle_count_lag_{lag}"] = df.iloc[-lag]["vehicle_count"]
+        latest[f"avg_speed_lag_{lag}"] = df.iloc[-lag]["avg_speed"]
+
+    # encode congestion
+    congestion_map = {"low": 0, "medium": 1, "high": 2}
+    latest["congestion_level"] = congestion_map.get(
+         df.iloc[-1]["congestion_level"], 1
+)
+
+    # one-hot weather & road_id
+    weather = df.iloc[-1]["weather"]
+    road_id = df.iloc[-1]["road_id"]
+
+    latest[f"weather_{weather}"] = 1
+    latest[f"road_id_{road_id}"] = 1
+
+    return pd.DataFrame([latest])
+
 
 @app.get("/")
 def root():
     return {"message": "Traffic API is running"}
 
+
 @app.get("/predict")
-def predict_traffic(vehicle_count: int, avg_speed: float):   
-   return predict_traffic(vehicle_count, avg_speed)
+def predict_vehicle_count():
+    try:
+        X = build_features_from_db()
+        prediction = model.predict(X)[0]
+
+        return {
+            "predicted_vehicle_count": float(prediction)
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 @app.post("/anomaly")
 def anomaly(vehicle_count: int, avg_speed: float):

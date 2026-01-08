@@ -43,3 +43,10 @@ def predict_traffic(input: TrafficInput):
     X = preprocess_input(input)
     pred = model.predict(X)
     return{"The predicted_vehicle_count": int(pred[0])}
+
+ 
+    # ensure the timestamp is datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    # sort by time
+    df = df.sort_values("timestamp")

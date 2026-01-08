@@ -1,14 +1,11 @@
 import pandas as pd
 import psycopg2
 from sqlalchemy import create_engine
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import joblib
 import time
 import os
-# from anomaly_services.detection import train_anomaly_model
-
+from xgboost import XGBRegressor
 
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
@@ -25,10 +22,10 @@ os.makedirs("/app/model", exist_ok=True)
 SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 30)) 
 
 
-
 # create SQLAlchemy engine
 DB_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 engine = create_engine(DB_URL)
+
 
 # fetching data from db
 def fetch_data():
@@ -41,14 +38,32 @@ def fetch_data():
    
 # data preprocessing for the ML
 def preprocess(df):
-    df = df.copy()
-    # use one-hot encode 'weather' and 'road_id' to handle all possible values dynamically
-    df = pd.get_dummies(df, columns=["weather", "road_id"])
+    df = df.copy()     
+    # ensure the timestamp is datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    # sort by time
+    df = df.sort_values("timestamp")
 
     # congestion levels to numeric
     df["congestion_level"] = df["congestion_level"].map({"low": 0, "medium": 1, "high": 2}).fillna(1)
 
+    # use one-hot encode 'weather' and 'road_id' to handle all possible values dynamically
+    df = pd.get_dummies(df, columns=["weather", "road_id"])
+
     return df
+
+ 
+
+# feature engineeering
+def add_lag_features(df, lags=[1, 2, 3]):
+    df = df.copy()
+
+    for lag in lags:
+        df[f"vehicle_count_lag_{lag}"] = df["vehicle_count"].shift(lag)
+        df[f"avg_speed_lag_{lag}"] = df["avg_speed"].shift(lag)
+
+    return df.dropna()
 
 # training loop
 while True:
@@ -67,16 +82,23 @@ while True:
         y = df["vehicle_count"]
 
         # train / test split
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_series_split(X, y)
 
-        # training the model 
-        prediction_model = LinearRegression()
-        prediction_model.fit(X_train, y_train)
+        model = XGBRegressor(
+            n_estimators=200,
+            max_depth=6,
+            learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42,
 
+        )
 
-        # evaluation 
-        y_prediction = prediction_model.predict(X_test)
-        mse = mean_squared_error(y_test, y_prediction)
+        model.fit(X_train, y_train)
+
+        preds = model.predict(X_test)
+        mse = mean_squared_error(y_test, preds)
+
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Trained model | MSE: {mse:.2f} | Rows used: {len(df)}")
 
         # make sure model folder exists

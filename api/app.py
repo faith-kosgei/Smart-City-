@@ -8,6 +8,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 PREDICTION_MODEL_FILE = "/app/model/traffic_model.pkl"
+FEATURES_FILE = "/app/model/traffic_features.pkl"
 ANOMALY_MODEL_FILE = "/app/model/traffic_anomaly_model.pkl"
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
@@ -31,6 +32,7 @@ while not os.path.exists(ANOMALY_MODEL_FILE):
 
 # Load the model once it exists
 prediction_model = joblib.load(PREDICTION_MODEL_FILE)
+features = joblib.load(FEATURES_FILE)
 print("Model loaded successfully!")
 
 
@@ -83,7 +85,14 @@ def root():
 def predict_vehicle_count():
     try:
         X = build_features_from_db()
-        prediction = model.predict(X)[0]
+
+        #  adding missing columns and ensuring they are in the correct order
+        for col in features:
+            if col not in X.columns:
+                X[col] = 0
+        X = X[features]
+        
+        prediction = prediction_model.predict(X)[0]
 
         return {
             "predicted_vehicle_count": float(prediction)

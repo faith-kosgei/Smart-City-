@@ -15,6 +15,7 @@ DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
 PREDICTION_MODEL_FILE = "/app/model/traffic_model.pkl"
+FEATURES_FILE = "/app/model/traffic_features.pkl"
 
 
 os.makedirs("/app/model", exist_ok=True)
@@ -76,22 +77,20 @@ while True:
             continue
 
         df = preprocess(df)
+        df = add_lag_features
 
         # feature and target
         X = df.drop(columns=["vehicle_count", "timestamp"])
         y = df["vehicle_count"]
 
         # train / test split
-        X_train, X_test, y_train, y_test = train_series_split(X, y)
+        X_train, X_test, y_train, y_test = train_series_split(X, y, test_size=0.2, random_state=42)
 
+        # training XGBoost
         model = XGBRegressor(
-            n_estimators=200,
+            n_estimators=100,
             max_depth=6,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
             random_state=42,
-
         )
 
         model.fit(X_train, y_train)
@@ -105,6 +104,7 @@ while True:
         os.makedirs(os.path.dirname(PREDICTION_MODEL_FILE), exist_ok=True)
         # save the model
         joblib.dump(prediction_model, PREDICTION_MODEL_FILE)
+        joblib.dump(X_train.columns.tolist(), FEATURES_FILE)
 
         print("prediction model trained successfully and saved")
 

@@ -64,7 +64,7 @@ def add_lag_features(df, lags=[1, 2, 3]):
         df[f"vehicle_count_lag_{lag}"] = df["vehicle_count"].shift(lag)
         df[f"avg_speed_lag_{lag}"] = df["avg_speed"].shift(lag)
 
-    return df.dropna()
+    return df
 
 # training loop
 while True:
@@ -77,19 +77,23 @@ while True:
             continue
 
         df = preprocess(df)
-        df = add_lag_features
+        df = add_lag_features(df)
+        df = df.dropna()
 
         # feature and target
         X = df.drop(columns=["vehicle_count", "timestamp"])
         y = df["vehicle_count"]
 
-        # train / test split
-        X_train, X_test, y_train, y_test = train_series_split(X, y, test_size=0.2, random_state=42)
+        # Time-series split
+        split = int(len(X) * 0.8)
+        X_train, X_test = X.iloc[:split], X.iloc[split:]
+        y_train, y_test = y.iloc[:split], y.iloc[split:]
 
         # training XGBoost
         model = XGBRegressor(
             n_estimators=100,
             max_depth=6,
+            learning_rate=0.05,
             random_state=42,
         )
 
@@ -103,10 +107,10 @@ while True:
         # make sure model folder exists
         os.makedirs(os.path.dirname(PREDICTION_MODEL_FILE), exist_ok=True)
         # save the model
-        joblib.dump(prediction_model, PREDICTION_MODEL_FILE)
-        joblib.dump(X_train.columns.tolist(), FEATURES_FILE)
-
+        joblib.dump(model, PREDICTION_MODEL_FILE)
         print("prediction model trained successfully and saved")
+        joblib.dump(X_train.columns.tolist(), FEATURES_FILE)
+        print("features successfully and saved")
 
        
     except KeyboardInterrupt:

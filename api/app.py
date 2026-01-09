@@ -29,6 +29,10 @@ while not os.path.exists(PREDICTION_MODEL_FILE):
 while not os.path.exists(ANOMALY_MODEL_FILE):
     print(f"Anomaly Model file {ANOMALY_MODEL_FILE} not found, waiting 5 seconds...")
     time.sleep(5)
+# Wait until the file exists
+while not os.path.exists(FEATURES_FILE):
+    print(f"Features file {FEATURES_FILE} not found, waiting 5 seconds...")
+    time.sleep(5)
 
 # Load the model once it exists
 prediction_model = joblib.load(PREDICTION_MODEL_FILE)
@@ -74,6 +78,12 @@ def build_features_from_db():
     latest[f"road_id_{road_id}"] = 1
 
     return pd.DataFrame([latest])
+    
+def align_features(X):
+    for col in features:
+        if col not in X.columns:
+            X[col] = 0
+    return X[features]
 
 
 @app.get("/")
@@ -85,13 +95,9 @@ def root():
 def predict_vehicle_count():
     try:
         X = build_features_from_db()
+        X = align_features(X)
 
-        #  adding missing columns and ensuring they are in the correct order
-        for col in features:
-            if col not in X.columns:
-                X[col] = 0
-        X = X[features]
-        
+
         prediction = prediction_model.predict(X)[0]
 
         return {

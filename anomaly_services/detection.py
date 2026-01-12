@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import IsolationForest
 import joblib
 import os
@@ -28,12 +29,12 @@ def load_model():
 def predict_anomaly(vehicle_count: int, avg_speed: float):
     model = load_model()
 
-    X = np.array([[vehicle_count, avg_speed]])
+    X = pd.DataFrame([[vehicle_count, avg_speed]])
     pred = model.predict(X)[0]
     score = model.decision_function(X)[0]
 
     return{
-        "is_anomaly": pred == -1,
+        "is_anomaly": bool(pred == -1),
         "score": float(score)
     }
  

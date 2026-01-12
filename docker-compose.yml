@@ -76,6 +76,8 @@ services:
         condition: service_healthy
     volumes:
       - model_data:/app/model
+    ports:
+      - "8001:8001"
     environment:
       DB_HOST: postgres
       DB_NAME: traffic

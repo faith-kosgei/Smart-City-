@@ -6,6 +6,9 @@ import numpy as np
 import sys
 import pandas as pd
 from sqlalchemy import create_engine
+from pydantic import BaseModel
+
+ANOMALY_SERVICE_URL = "http://traffic-anomaly:8001/anomaly"
 
 PREDICTION_MODEL_FILE = "/app/model/traffic_model.pkl"
 FEATURES_FILE = "/app/model/traffic_features.pkl"
@@ -41,6 +44,11 @@ print("Model loaded successfully!")
 
 
 app = FastAPI()
+
+
+class AnomalyRequest(BaseModel):
+    vehicle_count: int 
+    avg_speed: float
 
 # building the lag features inside the API
 def build_features_from_db():
@@ -78,7 +86,7 @@ def build_features_from_db():
     latest[f"road_id_{road_id}"] = 1
 
     return pd.DataFrame([latest])
-    
+
 def align_features(X):
     for col in features:
         if col not in X.columns:
@@ -110,6 +118,15 @@ def predict_vehicle_count():
 
 
 @app.post("/anomaly")
-def anomaly(vehicle_count: int, avg_speed: float):
-    return predict_anomaly(vehicle_count, avg_speed)
+def anomaly(request: AnomalyRequest):
+    try:
+        response = request.post(
+            ANOMALY_SERVICE_URL,
+            json = request.dict(),
+            timeout=5
+        )
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return{"error": str(e)}
+    
    

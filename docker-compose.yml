@@ -78,18 +78,29 @@ services:
       - model_data:/app/model
     ports:
       - "8001:8001"
-    environment:
+    environment: 
       DB_HOST: postgres
       DB_NAME: traffic
       DB_USER: postgres
       DB_PASSWORD: postgres
     restart: on-failure
 
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - traffic-api
+      - anomaly-service
+
+
 volumes:
   sim_output:
   pg_data:
   model_data:
-
 
 
     

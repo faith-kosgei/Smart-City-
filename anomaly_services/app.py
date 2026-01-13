@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from detection import predict_anomaly  # your existing function
+from detection import predict_anomaly
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="Anomaly Service")
+Instrumentator().instrument(app).expose(app)
 
 class AnomalyRequest(BaseModel):
     vehicle_count: int

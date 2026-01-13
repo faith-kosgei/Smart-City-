@@ -6,3 +6,4 @@ scikit-learn
 psycopg2-binary
 sqlalchemy
 xgboost
+prometheus-fastapi-instrumentator

@@ -7,6 +7,8 @@ import sys
 import pandas as pd
 from sqlalchemy import create_engine
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
+
 
 ANOMALY_SERVICE_URL = "http://traffic-anomaly:8001/anomaly"
 
@@ -43,7 +45,8 @@ features = joblib.load(FEATURES_FILE)
 print("Model loaded successfully!")
 
 
-app = FastAPI()
+app = FastAPI(title="Traffic api")
+Instrumentator().instrument(app).expose(app)
 
 
 class AnomalyRequest(BaseModel):

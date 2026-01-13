@@ -6,3 +6,4 @@ psycopg2-binary
 uvicorn
 sqlalchemy
 numpy
+prometheus-fastapi-instrumentator

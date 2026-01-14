@@ -96,11 +96,24 @@ services:
       - traffic-api
       - anomaly-service
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
 
 volumes:
   sim_output:
   pg_data:
   model_data:
+  grafana-data:
 
 
     

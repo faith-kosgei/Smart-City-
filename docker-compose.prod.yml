@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: traffic-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: traffic
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+
+  traffic-api:
+    image: smart-city/traffic-api:1.0.0
+    container_name: traffic-api
+    volumes:
+      - model_data:/app/model
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    restart: always
+
+  anomaly-service:
+    image: smart-city/anomaly-service:1.0.0
+    container_name: traffic-anomaly
+    volumes:
+      - model_data:/app/model
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+    restart: always
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: always
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: always
+
+volumes:
+  pg_data:
+  model_data:
+  grafana-data:
